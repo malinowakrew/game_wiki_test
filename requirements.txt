@@ -6,3 +6,4 @@ pyjwt
 flask_jwt_extended
 requests
 bs4
+pytest
