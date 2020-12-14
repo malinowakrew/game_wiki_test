@@ -41,39 +41,35 @@ def get_tasks():
 if __name__ == '__main__':
     app.run()
 """
-from datetime import (datetime, timedelta)
-from flask import Flask, jsonify, request
+from datetime import timedelta
+from flask import Flask, jsonify, request, redirect, url_for
 
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
     jwt_refresh_token_required, create_refresh_token,
     get_jwt_identity, set_access_cookies,
-    set_refresh_cookies, unset_jwt_cookies
+    set_refresh_cookies, unset_jwt_cookies,
 )
 
 from db.schema import *
 
-# NOTE: This is just a basic example of how to enable cookies. This is
-#       vulnerable to CSRF attacks, and should not be used as is. See
-#       csrf_protection_with_cookies.py for a more complete example!
-
-from pageReader.pageScraping import Scraper
+from src.game_creator.questions_creator import *
 
 app = Flask(__name__)
 
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']
 
-
-app.config['JWT_ACCESS_COOKIE_PATH'] = '/api/'
+app.config['JWT_ACCESS_COOKIE_PATH'] = '/wikitest/'
 app.config['JWT_REFRESH_COOKIE_PATH'] = '/token/refresh'
-
 
 app.config['JWT_COOKIE_CSRF_PROTECT'] = True
 
-
 app.config['JWT_SECRET_KEY'] = 'wiki_test'
 
+
 jwt = JWTManager(app)
+
+
 
 
 @app.route('/token/auth', methods=['POST'])
@@ -82,16 +78,18 @@ def login():
     password = request.json.get('password', None)
 
     try:
+        # user = User.query.filter_by(email=form.email.data).first()
         user = Account.objects(name=username)[0]
-    except:
+
+    except Exception as error:
         return jsonify({'login': False}), 401
 
-    if not(argon2.verify(password, user.passwd)):
+    if not (argon2.verify(password, user.passwd)):
         return jsonify({'login': False}), 401
 
     # Create the tokens we will be sending back to the user
-    timeLimit = timedelta(minutes=30) # set limit for user
-    access_token = create_access_token(identity=username, expires_delta=timeLimit)
+    time_limit = timedelta(minutes=30)  # set limit for user
+    access_token = create_access_token(identity=username, expires_delta=time_limit)
     refresh_token = create_refresh_token(identity=username)
 
     # Set the JWT cookies in the response
@@ -122,20 +120,32 @@ def logout():
     return resp, 200
 
 
-@app.route('/api/example', methods=['GET'])
+@app.route('/wikitest/example', methods=['GET'])
 @jwt_required
 def welcome():
     username = get_jwt_identity()
     return jsonify({'hello': 'from {}'.format(username)}), 200
 
 
-@app.route('/api/scrap', methods=['GET'])
+@app.route('/wikitest/scrap', methods=['GET'])
 @jwt_required
 def scrap():
-    scraper = Scraper()
-    data = scraper.dataSoupProccess()
+    game_questions = QuestionCreator()
+    game_questions.read()
+    data = game_questions.dict_maker()
     return jsonify(data), 201
 
+
+@app.route('/wikitest/redirect', methods=['POST', 'GET'])
+def redirection():
+    ok = request.json.get('ok', True)
+    if ok:
+        return redirect(url_for('scrap'), code=302)
+    else:
+        return jsonify({"redirected": False}), 401
+
+
+"""
 @app.route('/nic', methods=['GET'])
 def hello_world():
     user = test()
@@ -147,6 +157,7 @@ def hello_world():
     except Exception as e:
         print(e)
         return "Pies"
+"""
 
 if __name__ == '__main__':
     app.run()
