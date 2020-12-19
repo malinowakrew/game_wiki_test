@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from datetime import datetime
+import re
 
 """
 Page scrapping depends on date and transform information from it into a dictionary
@@ -32,6 +33,8 @@ class Scraper:
             text = row.get_text()
             split_text = text.split(" – ")
 
-            data.append({"year": split_text[0], "text": split_text[1]})
+            #we don't want to use date before Christ times
+            if not re.search("BC", split_text[0]):
+                data.append({"year": split_text[0], "text": split_text[1]})
 
         return data

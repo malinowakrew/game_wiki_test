@@ -1,46 +1,3 @@
-"""
-from flask import Flask
-from flask import Flask, jsonify, abort, request, make_response, render_template
-from db.schema import *
-
-app = Flask(__name__)
-
-tasks = [
-    {
-        'id': 1,
-        'title': u'Buy groceries',
-        'description': u'Milk, Cheese, Pizza, Fruit, Tylenol',
-        'done': False
-    },
-    {
-        'id': 2,
-        'title': u'Learn Python',
-        'description': u'Need to find a good Python tutorial on the web',
-        'done': False
-    }
-]
-
-@app.route('/')
-def hello_world():
-    user = test()
-    try:
-        users = user.to_mongo().to_dict()
-        print(users)
-        users['_id'] = "123"
-        return jsonify(users)
-    except Exception as e:
-        print(e)
-        return "Pies"
-
-
-@app.route('/task', methods=['GET'])
-def get_tasks():
-    return jsonify(tasks[0])
-
-
-if __name__ == '__main__':
-    app.run()
-"""
 from datetime import timedelta
 from flask import Flask, jsonify, request, redirect, url_for
 
@@ -48,10 +5,14 @@ from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
     jwt_refresh_token_required, create_refresh_token,
     get_jwt_identity, set_access_cookies,
-    set_refresh_cookies, unset_jwt_cookies,
+    set_refresh_cookies, unset_jwt_cookies, jwt_optional,
 )
 
+"""
 from db.schema import *
+from authenticate import token_required
+from flask_wtf.csrf import CSRFProtect
+"""
 
 from src.game_creator.questions_creator import *
 
@@ -63,14 +24,14 @@ app.config['JWT_ACCESS_COOKIE_PATH'] = '/wikitest/'
 app.config['JWT_REFRESH_COOKIE_PATH'] = '/token/refresh'
 
 app.config['JWT_COOKIE_CSRF_PROTECT'] = True
-
-app.config['JWT_SECRET_KEY'] = 'wiki_test'
-
+app.config['JWT_CSRF_CHECK_FORM'] = True
 
 jwt = JWTManager(app)
+app.config['JWT_SECRET_KEY'] = 'wiki_test'
 
-
-
+#tak nie wolno raczej robić
+#app.secret_key = "super secret key"
+#csrf = CSRFProtect(app)
 
 @app.route('/token/auth', methods=['POST'])
 def login():
@@ -78,7 +39,6 @@ def login():
     password = request.json.get('password', None)
 
     try:
-        # user = User.query.filter_by(email=form.email.data).first()
         user = Account.objects(name=username)[0]
 
     except Exception as error:
@@ -89,8 +49,8 @@ def login():
 
     # Create the tokens we will be sending back to the user
     time_limit = timedelta(minutes=30)  # set limit for user
-    access_token = create_access_token(identity=username, expires_delta=time_limit)
-    refresh_token = create_refresh_token(identity=username)
+    access_token = create_access_token(identity=user.name, expires_delta=time_limit)
+    refresh_token = create_refresh_token(identity=user.name)
 
     # Set the JWT cookies in the response
     resp = jsonify({'login': True})
@@ -104,8 +64,8 @@ def login():
 def refresh():
     # Create the new access token
     current_user = get_jwt_identity()
-    timeLimit = timedelta(minutes=30)
-    access_token = create_access_token(identity=current_user, expires_delta=timeLimit)
+    time_limit = timedelta(minutes=30)
+    access_token = create_access_token(identity=current_user, expires_delta=time_limit)
 
     # Set the JWT access cookie in the response
     resp = jsonify({'refresh': True})
@@ -133,7 +93,10 @@ def scrap():
     game_questions = QuestionCreator()
     game_questions.read()
     data = game_questions.dict_maker()
-    return jsonify(data), 201
+    current_user = get_jwt_identity()
+    game_questions.add_game_to_user(data, current_user)
+    return "ok"
+    #return redirect(url_for('show_post', post_id=0), code=302)
 
 
 @app.route('/wikitest/redirect', methods=['POST', 'GET'])
@@ -145,19 +108,42 @@ def redirection():
         return jsonify({"redirected": False}), 401
 
 
+@app.route('/wikitest/post/<int:post_id>', methods=['GET', 'POST'])
+@jwt_required
+def show_post(post_id):
+    if request.method == 'GET':
+        game_questions = QuestionCreator()
+        current_user = get_jwt_identity()
+        quest = game_questions.user_question_reader(post_id, current_user)
+
+        return quest.user_view(), 200
+
+
+@app.route('/wikitest/answer/<int:number>/<answer>', methods=['GET', 'POST'])
+@jwt_required
+def question_ident(number, answer):
+    current_user = get_jwt_identity()
+    game_questions = QuestionCreator()
+    quest = game_questions.user_question_reader(number, current_user)
+    point = game_questions.check_answer(answer, quest)
+
+    return jsonify({"points": point}), 200
+
+
+@app.route('/wikitest/answer', methods=['POST'])
+def check_post():
+    answer = request.json.get("answer", None)
+    number = request.json.get("number", None)
+    return redirect(url_for("question_ident", number=number, answer=answer), code=302)
+
+
 """
-@app.route('/nic', methods=['GET'])
-def hello_world():
-    user = test()
-    try:
-        users = user.to_mongo().to_dict()
-        print(users)
-        users['_id'] = "123"
-        return jsonify(users)
-    except Exception as e:
-        print(e)
-        return "Pies"
+@jwt.error_handler
+def error_handler(error):
+    return "Error: {}".format(error), 400
+
 """
+
 
 if __name__ == '__main__':
     app.run()
