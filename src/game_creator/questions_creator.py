@@ -92,12 +92,18 @@ class QuestionCreator:
         return user_questions
     """
 
-    @staticmethod
-    def check_answer(user_answer, question):
+    def check_answer(self, user_answer, question, user_identity):
         if question.user_view()[user_answer] == question.correct:
+            self.add_point(user_identity)
             return 1
         else:
             return 0
+
+    @staticmethod
+    def add_point(user_identity):
+        user = Account.objects(name=user_identity)[0]
+        games = user.score[-1]
+        games.update(inc__points=1)
 
 """
 if __name__ == "__main__":

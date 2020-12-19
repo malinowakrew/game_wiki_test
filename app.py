@@ -125,7 +125,7 @@ def question_ident(number, answer):
     current_user = get_jwt_identity()
     game_questions = QuestionCreator()
     quest = game_questions.user_question_reader(number, current_user)
-    point = game_questions.check_answer(answer, quest)
+    point = game_questions.check_answer(answer, quest, current_user)
 
     return jsonify({"points": point}), 200
 
