@@ -1,5 +1,4 @@
 from mongoengine import *
-from mongoengine import connect
 
 from datetime import datetime
 from passlib.hash import argon2

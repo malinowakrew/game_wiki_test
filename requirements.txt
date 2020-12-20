@@ -8,3 +8,4 @@ requests
 bs4
 pytest
 flask_wtf
+flask_mongoengine

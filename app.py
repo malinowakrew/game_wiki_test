@@ -5,8 +5,9 @@ from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
     jwt_refresh_token_required, create_refresh_token,
     get_jwt_identity, set_access_cookies,
-    set_refresh_cookies, unset_jwt_cookies, jwt_optional,
+    set_refresh_cookies, unset_jwt_cookies,
 )
+from flask_mongoengine import MongoEngine
 
 """
 from db.schema import *
@@ -17,6 +18,13 @@ from flask_wtf.csrf import CSRFProtect
 from src.game_creator.questions_creator import *
 
 app = Flask(__name__)
+"""
+db = MongoEngine(app)
+app.config['MONGODB_SETTINGS'] = {
+    'db': 'wiki',
+    'host': 'mongodb://localhost/wiki'
+}
+"""
 
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']
 
@@ -135,7 +143,6 @@ def check_post():
     answer = request.json.get("answer", None)
     number = request.json.get("number", None)
     return redirect(url_for("question_ident", number=number, answer=answer), code=302)
-
 
 """
 @jwt.error_handler
