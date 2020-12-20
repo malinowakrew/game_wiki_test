@@ -7,18 +7,12 @@ from flask_jwt_extended import (
     get_jwt_identity, set_access_cookies,
     set_refresh_cookies, unset_jwt_cookies,
 )
-from flask_mongoengine import MongoEngine
-
-"""
-from db.schema import *
-from authenticate import token_required
-from flask_wtf.csrf import CSRFProtect
-"""
 
 from src.game_creator.questions_creator import *
 
 app = Flask(__name__)
 """
+from flask_mongoengine import MongoEngine
 db = MongoEngine(app)
 app.config['MONGODB_SETTINGS'] = {
     'db': 'wiki',
@@ -37,9 +31,7 @@ app.config['JWT_CSRF_CHECK_FORM'] = True
 jwt = JWTManager(app)
 app.config['JWT_SECRET_KEY'] = 'wiki_test'
 
-#tak nie wolno raczej robić
-#app.secret_key = "super secret key"
-#csrf = CSRFProtect(app)
+app.secret_key = "super secret key"
 
 @app.route('/token/auth', methods=['POST'])
 def login():
@@ -103,7 +95,7 @@ def scrap():
     data = game_questions.dict_maker()
     current_user = get_jwt_identity()
     game_questions.add_game_to_user(data, current_user)
-    return "ok"
+    return "ok", 200
     #return redirect(url_for('show_post', post_id=0), code=302)
 
 
@@ -134,8 +126,12 @@ def question_ident(number, answer):
     game_questions = QuestionCreator()
     quest = game_questions.user_question_reader(number, current_user)
     point = game_questions.check_answer(answer, quest, current_user)
-
-    return jsonify({"points": point}), 200
+    if point:
+        return jsonify({"points": point}), 200
+    else:
+        correct_answer = game_questions.return_correct_year(quest)
+        return jsonify({"points": point,
+                        "correct": correct_answer}), 200
 
 
 @app.route('/wikitest/answer', methods=['POST'])

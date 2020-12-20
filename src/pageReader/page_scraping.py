@@ -34,7 +34,7 @@ class Scraper:
             split_text = text.split(" – ")
 
             #we don't want to use date before Christ times
-            if not re.search("BC", split_text[0]):
+            if not re.search("BC", split_text[0]) or re.search("AD", split_text[0]):
                 data.append({"year": split_text[0], "text": split_text[1]})
 
         return data

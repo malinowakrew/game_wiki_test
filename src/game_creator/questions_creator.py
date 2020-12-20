@@ -105,6 +105,10 @@ class QuestionCreator:
         games = user.score[-1]
         games.update(inc__points=1)
 
+    @staticmethod
+    def return_correct_year(question):
+        return question.correct
+
 """
 if __name__ == "__main__":
     points = 0
