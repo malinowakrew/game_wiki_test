@@ -9,16 +9,18 @@ from flask_jwt_extended import (
 )
 
 from src.game_creator.questions_creator import *
+from src.game_creator.ranking import Ranking
 
 app = Flask(__name__)
-"""
-from flask_mongoengine import MongoEngine
-db = MongoEngine(app)
-app.config['MONGODB_SETTINGS'] = {
-    'db': 'wiki',
-    'host': 'mongodb://localhost/wiki'
-}
-"""
+
+#from flask_mongoengine import MongoEngine
+
+# disconnect()
+# app.config['MONGODB_SETTINGS'] = {
+#     'db': 'wiki',
+#     'host': 'mongodb://localhost/wiki'
+# }
+
 
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']
 
@@ -32,6 +34,9 @@ jwt = JWTManager(app)
 app.config['JWT_SECRET_KEY'] = 'wiki_test'
 
 app.secret_key = "super secret key"
+
+disconnect()
+connect('wiki', host='mongodb://localhost/wiki')
 
 @app.route('/token/auth', methods=['POST'])
 def login():
@@ -49,8 +54,8 @@ def login():
 
     # Create the tokens we will be sending back to the user
     time_limit = timedelta(minutes=30)  # set limit for user
-    access_token = create_access_token(identity=user.name, expires_delta=time_limit)
-    refresh_token = create_refresh_token(identity=user.name)
+    access_token = create_access_token(identity={"username": user.name}, expires_delta=time_limit)
+    refresh_token = create_refresh_token(identity={"username": user.name})
 
     # Set the JWT cookies in the response
     resp = jsonify({'login': True})
@@ -65,7 +70,7 @@ def refresh():
     # Create the new access token
     current_user = get_jwt_identity()
     time_limit = timedelta(minutes=30)
-    access_token = create_access_token(identity=current_user, expires_delta=time_limit)
+    access_token = create_access_token(identity={"username": current_user}, expires_delta=time_limit)
 
     # Set the JWT access cookie in the response
     resp = jsonify({'refresh': True})
@@ -99,21 +104,25 @@ def scrap():
     #return redirect(url_for('show_post', post_id=0), code=302)
 
 
-@app.route('/wikitest/redirect', methods=['POST', 'GET'])
+@app.route('/wikitest/new_game', methods=['POST', 'GET'])
 def redirection():
     ok = request.json.get('ok', True)
     if ok:
         return redirect(url_for('scrap'), code=302)
     else:
-        return jsonify({"redirected": False}), 401
+        return jsonify({"redirected": False}), 200
 
 
 @app.route('/wikitest/post/<int:post_id>', methods=['GET', 'POST'])
 @jwt_required
 def show_post(post_id):
+    if post_id > 4:
+        return "error", 401
     if request.method == 'GET':
         game_questions = QuestionCreator()
         current_user = get_jwt_identity()
+        #make test works
+        current_user = current_user["username"]
         quest = game_questions.user_question_reader(post_id, current_user)
 
         return quest.user_view(), 200
@@ -122,7 +131,9 @@ def show_post(post_id):
 @app.route('/wikitest/answer/<int:number>/<answer>', methods=['GET', 'POST'])
 @jwt_required
 def question_ident(number, answer):
-    current_user = get_jwt_identity()
+    if number > 4:
+        return 401
+    current_user = get_jwt_identity()["username"]
     game_questions = QuestionCreator()
     quest = game_questions.user_question_reader(number, current_user)
     point = game_questions.check_answer(answer, quest, current_user)
@@ -140,13 +151,19 @@ def check_post():
     number = request.json.get("number", None)
     return redirect(url_for("question_ident", number=number, answer=answer), code=302)
 
-"""
-@jwt.error_handler
-def error_handler(error):
-    return "Error: {}".format(error), 400
+# """
+# @jwt.error_handler
+# def error_handler(error):
+#     return "Error: {}".format(error), 400
+#
+# """
 
-"""
-
+@app.route('/wikitest/ranking', methods=['GET'])
+@jwt_required
+def show_games_ranking():
+    current_user = get_jwt_identity()["username"]
+    ranking = Ranking(current_user)
+    return ranking.crate_answers(), 200
 
 if __name__ == '__main__':
     app.run()

@@ -5,11 +5,20 @@ from datetime import datetime
 import re
 
 """
-Page scrapping depends on date and transform information from it into a dictionary
+page_scrapping
+=====================
+Page scrapping depends on date and transform information from it into a dictionary.
+Using:
+*re 
+*bs4
+*requests
 """
 
 
 class Scraper:
+    """
+    The main aim of this class is collecting data from wikipedia and give it to other classes and functions.
+    """
     def __init__(self):
         self.date = datetime.now()
 
@@ -27,7 +36,14 @@ class Scraper:
 
     def data_soup_process(self) -> list:
         li = self.req()
-        lu = li[1].findAll("li")
+
+        problematic_data = '1/01'
+        problematic_data = datetime.strptime(problematic_data, '%m/%d')
+        if self.date.day == problematic_data.day and self.date.month == problematic_data.month:
+            lu = li[6].findAll("li")
+        else:
+            lu = li[1].findAll("li")
+
         data = []
         for row in lu:
             text = row.get_text()
@@ -38,3 +54,7 @@ class Scraper:
                 data.append({"year": split_text[0], "text": split_text[1]})
 
         return data
+
+if __name__ == "__main__":
+    sc = Scraper()
+    n = sc.data_soup_process()

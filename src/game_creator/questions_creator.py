@@ -67,30 +67,28 @@ class QuestionCreator:
         game.save()
         return game
 
-
     def add_game_to_user(self, game, user_identity):
-        user = Account.objects(name=user_identity)[0]
+        user = Account.objects(name=user_identity["username"])[0]
         user.update(push__score=game)
-
 
     def user_question_reader(self, number, user_identity=None):
         user = Account.objects(name=user_identity)[0]
         games = user.score[-1]
         return games.questions[number]
 
-    """
-    @staticmethod
-    def user_questions_maker_7(chosen_questions: list) -> list:
-        keys = [list((question["years"]).keys()) for question in chosen_questions]
-        abc = ["A", "B", "C"]
-        zip_questions = [zip(abc, key) for key in keys]
-        user_questions = [dict(question) for question in zip_questions]
-
-        for nr, q in enumerate(user_questions):
-            user_questions[nr]["text"] = chosen_questions[nr]["text"]
-
-        return user_questions
-    """
+    # """
+    # @staticmethod
+    # def user_questions_maker_7(chosen_questions: list) -> list:
+    #     keys = [list((question["years"]).keys()) for question in chosen_questions]
+    #     abc = ["A", "B", "C"]
+    #     zip_questions = [zip(abc, key) for key in keys]
+    #     user_questions = [dict(question) for question in zip_questions]
+    #
+    #     for nr, q in enumerate(user_questions):
+    #         user_questions[nr]["text"] = chosen_questions[nr]["text"]
+    #
+    #     return user_questions
+    # """
 
     def check_answer(self, user_answer, question, user_identity):
         if question.user_view()[user_answer] == question.correct:
@@ -102,35 +100,35 @@ class QuestionCreator:
     @staticmethod
     def add_point(user_identity):
         user = Account.objects(name=user_identity)[0]
-        games = user.score[-1]
-        games.update(inc__points=1)
+        game = user.score[-1]
+        game.update(inc__points=1)
 
     @staticmethod
     def return_correct_year(question):
         return question.correct
 
-"""
-if __name__ == "__main__":
-    points = 0
-    q = QuestionCreator()
-    q.read()
-    data = q.dict_maker()
-    lista = q.user_questions_maker(data)
-    print(lista)
-    for nr, i in enumerate(lista):
-        print(data[nr]["text"])
-        print(i)
-        start = datetime.now()
-        odp = input("ODP:").upper()
-        stop = datetime.now()
-        if (data[nr]["years"])[i[odp]]:
-            print("Poprawnie")
-            if stop-start < timedelta(seconds=10):
-                print("NA czas")
-                points += 1
-            else:
-                print("Nie na czas")
-        else:
-            print(list((data[nr]["years"].keys()))[list(data[nr]["years"].values()).index(True)])
-    print("Your points {}".format(points))
-"""
+# """
+# if __name__ == "__main__":
+#     points = 0
+#     q = QuestionCreator()
+#     q.read()
+#     data = q.dict_maker()
+#     lista = q.user_questions_maker(data)
+#     print(lista)
+#     for nr, i in enumerate(lista):
+#         print(data[nr]["text"])
+#         print(i)
+#         start = datetime.now()
+#         odp = input("ODP:").upper()
+#         stop = datetime.now()
+#         if (data[nr]["years"])[i[odp]]:
+#             print("Poprawnie")
+#             if stop-start < timedelta(seconds=10):
+#                 print("NA czas")
+#                 points += 1
+#             else:
+#                 print("Nie na czas")
+#         else:
+#             print(list((data[nr]["years"].keys()))[list(data[nr]["years"].values()).index(True)])
+#     print("Your points {}".format(points))
+# """
