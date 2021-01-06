@@ -1,6 +1,5 @@
 import pytest
 from app import *
-from mongoengine import connect
 #from flask_mongoengine import MongoEngine
 
 
@@ -11,7 +10,7 @@ def client():
     app.config["PASSWORD"] = "test"
     client = app.test_client()
     disconnect()
-    connect('wiki-test', host='mongodb://localhost/wiki-test')
+    #connect('wiki-test', host='mongodb://localhost/wiki-test')
 
     yield client
 
@@ -25,7 +24,7 @@ def client_jwt():
     app.config["USERNAME"] = "test"
     app.config["PASSWORD"] = "test"
     disconnect()
-    connect('wiki-test', host='mongodb://localhost/wiki-test')
+    #connect('wiki-test', host='mongodb://localhost/wiki-test')
     client = app.test_client()
     yield client
 

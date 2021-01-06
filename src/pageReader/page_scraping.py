@@ -40,7 +40,7 @@ class Scraper:
         problematic_data = '1/01'
         problematic_data = datetime.strptime(problematic_data, '%m/%d')
         if self.date.day == problematic_data.day and self.date.month == problematic_data.month:
-            lu = li[6].findAll("li")
+            lu = li[5].findAll("li")
         else:
             lu = li[1].findAll("li")
 
@@ -51,7 +51,10 @@ class Scraper:
 
             #we don't want to use date before Christ times
             if not re.search("BC", split_text[0]) or re.search("AD", split_text[0]):
-                data.append({"year": split_text[0], "text": split_text[1]})
+                data.append({
+                    "year": split_text[0],
+                    "text": re.sub("\[[0-9]{1,2}\]", "", split_text[1])
+                })
 
         return data
 

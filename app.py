@@ -7,20 +7,13 @@ from flask_jwt_extended import (
     get_jwt_identity, set_access_cookies,
     set_refresh_cookies, unset_jwt_cookies,
 )
+from flask_mongoengine import MongoEngine
 
 from src.game_creator.questions_creator import *
 from src.game_creator.ranking import Ranking
 
+
 app = Flask(__name__)
-
-#from flask_mongoengine import MongoEngine
-
-# disconnect()
-# app.config['MONGODB_SETTINGS'] = {
-#     'db': 'wiki',
-#     'host': 'mongodb://localhost/wiki'
-# }
-
 
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']
 
@@ -33,13 +26,20 @@ app.config['JWT_CSRF_CHECK_FORM'] = True
 jwt = JWTManager(app)
 app.config['JWT_SECRET_KEY'] = 'wiki_test'
 
-app.secret_key = "super secret key"
+app.secret_key = "152hshshs"
 
-disconnect()
-connect('wiki', host='mongodb://localhost/wiki')
+app.config['MONGODB_SETTINGS'] = {
+    'db': 'wiki',
+    'host': 'mongodb://localhost/wiki'
+}
+
+#app.register_blueprint(auth.bp)
+
+db = MongoEngine(app)
 
 @app.route('/token/auth', methods=['POST'])
 def login():
+    get_db()
     username = request.json.get('username', None)
     password = request.json.get('password', None)
 
@@ -113,22 +113,23 @@ def redirection():
         return jsonify({"redirected": False}), 200
 
 
-@app.route('/wikitest/post/<int:post_id>', methods=['GET', 'POST'])
+
+@app.route('/wikitest/post/<int:post_id>', methods=['GET'])
 @jwt_required
 def show_post(post_id):
-    if post_id > 4:
-        return "error", 401
-    if request.method == 'GET':
-        game_questions = QuestionCreator()
-        current_user = get_jwt_identity()
-        #make test works
-        current_user = current_user["username"]
-        quest = game_questions.user_question_reader(post_id, current_user)
+    if request.method == "GET":
+        if post_id > 4:
+            return "error", 401
+        if request.method == 'GET':
+            game_questions = QuestionCreator()
+            current_user = get_jwt_identity()
+            current_user = current_user["username"]
+            quest = game_questions.user_question_reader(post_id, current_user)
 
-        return quest.user_view(), 200
+            return quest.user_view(), 200
 
 
-@app.route('/wikitest/answer/<int:number>/<answer>', methods=['GET', 'POST'])
+@app.route('/wikitest/answer/<int:number>/<answer>', methods=['GET'])
 @jwt_required
 def question_ident(number, answer):
     if number > 4:
@@ -145,6 +146,9 @@ def question_ident(number, answer):
                         "correct": correct_answer}), 200
 
 
+"""
+Prawdopodobnie zbędna matoda - do usunięcia 
+"""
 @app.route('/wikitest/answer', methods=['POST'])
 def check_post():
     answer = request.json.get("answer", None)
@@ -165,5 +169,16 @@ def show_games_ranking():
     ranking = Ranking(current_user)
     return ranking.crate_answers(), 200
 
+
+@app.route('/wikitest/test/<int:number>', methods=['GET', 'POST'])
+def wiki_test(number):
+    if request.method == "GET":
+        return redirect(url_for("show_post", post_id=number), code=302)
+    if request.method == "POST":
+        answer = request.json.get("answer", None)
+        return redirect(url_for("question_ident", number=number, answer=answer), code=302)
+
+
 if __name__ == '__main__':
-    app.run()
+    disconnect()
+    app.run(db)

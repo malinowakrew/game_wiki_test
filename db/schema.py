@@ -30,7 +30,7 @@ class Question(Document):
 
     def ranking_view(self):
         return {
-            "question": self.question_text,
+            "question-text": self.question_text,
             "year": self.correct
         }
 
