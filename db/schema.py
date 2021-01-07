@@ -48,7 +48,9 @@ class Game(Document):
         return {
             "nic": ""
         }#TODO:make this game ranking view accurate
-role = ("admin", "user")
+
+
+role = ("verify-user", "user")
 
 
 class Account(Document):
@@ -59,7 +61,7 @@ class Account(Document):
     """
     role = StringField(required=True, hoices=role)
     name = StringField(required=True, unique=True)
-    email = StringField(required=True)  # regex="^@gmail.com"
+    email = StringField(unique=False)  # regex="^@gmail.com"
     score = ListField(ReferenceField(Game))
     __passwd = StringField(required=True, max_length=200)
 
@@ -71,6 +73,9 @@ class Account(Document):
     def passwd(self, passwd):
         self.__passwd = argon2.using(salt_size=8).hash(passwd)
 
+    def user_view(self):
+        return {"name": self.name,
+                "role": self.role}
 
 # def test():
 #     disconnect()

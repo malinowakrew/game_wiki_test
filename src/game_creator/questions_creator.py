@@ -72,10 +72,24 @@ class QuestionCreator:
         user.update(push__score=game)
 
     def user_question_reader(self, number, user_identity=None):
-        user = Account.objects(name=user_identity)[0]
+        user = Account.objects(name=user_identity["username"])[0]
         games = user.score[-1]
         return games.questions[number]
 
+    @staticmethod
+    def check_if_today_game_exist(user_identity=None):
+        try:
+            user = Account.objects(name=user_identity["username"])[0]
+            game = user.score[-1]
+        except IndexError:
+            return True
+        last_game_date = game.date.strftime("%m/%d/%Y")
+        date = datetime.now().strftime("%m/%d/%Y")
+
+        if last_game_date == date:
+            return False
+        else:
+            return True
     # """
     # @staticmethod
     # def user_questions_maker_7(chosen_questions: list) -> list:

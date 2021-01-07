@@ -10,3 +10,4 @@ pytest
 flask_wtf
 flask_mongoengine
 werkzeug
+flask_user
