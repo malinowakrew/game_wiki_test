@@ -167,7 +167,7 @@ def check_post():
 def show_games_ranking():
     current_user = get_jwt_identity()["username"]
     ranking = Ranking(current_user)
-    return ranking.crate_answers(), 200
+    return ranking.read_user_answers_from_games(), 200
 
 
 @app.route('/wikitest/test/<int:number>', methods=['GET', 'POST'])

@@ -1,6 +1,7 @@
 from src import scraper
 from random import randint, shuffle
 from datetime import datetime, timedelta
+from werkzeug.exceptions import Gone
 
 from db.schema import *
 
@@ -56,7 +57,8 @@ class QuestionCreator:
                          answer_a=answers[0],
                          answer_b=answers[1],
                          answer_c=answers[2],
-                         correct=year)
+                         correct=year,
+                         user_answer=None)
             q.save()
             game.questions.append(q)
 
@@ -74,7 +76,13 @@ class QuestionCreator:
     def user_question_reader(self, number, user_identity=None):
         user = Account.objects(name=user_identity["username"])[0]
         games = user.score[-1]
-        return games.questions[number]
+        question = games.questions[number]
+        try:
+            nic = question.user_answer
+            raise Gone
+        except:
+            #if games.questions[number]#TODO chech if answer exist
+            return question
 
     @staticmethod
     def check_if_today_game_exist(user_identity=None):
@@ -105,8 +113,10 @@ class QuestionCreator:
     # """
 
     def check_answer(self, user_answer, question, user_identity):
+        Question.objects(id=question.id).update(set__user_answer=user_answer)
+
         if question.user_view()[user_answer] == question.correct:
-            self.add_point(user_identity)
+            self.add_point(user_identity['username'])
             return 1
         else:
             return 0

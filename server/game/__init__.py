@@ -6,7 +6,7 @@ from flask_jwt_extended import (
 )
 from flask import Flask, jsonify, request, redirect, url_for
 
-import werkzeug
+from werkzeug.exceptions import BadRequest, NotFound
 from flask import (
     Blueprint
 )
@@ -17,13 +17,14 @@ from src.game_creator.questions_creator import QuestionCreator
 bp = Blueprint('game', __name__, url_prefix='/game')
 
 
-@bp.route('/start', methods=['POST'])
+@bp.route('/start', methods=['GET'])
+@jwt_required
 def redirection():
-    ok = request.json.get('crate-new-game', True)
-    if ok:
-        return redirect(url_for('game.scrap'), code=302)
-    else:
-        return jsonify({"redirected": False}), 200
+    # ok = request.json.get('crate-new-game', True)
+    # if ok:
+    return redirect(url_for('game.scrap'), code=302)
+    # else:
+    #     return jsonify({"redirected": False}), 200
 
 
 @bp.route('/scraper', methods=['GET'])
@@ -48,11 +49,11 @@ def scrap():
 @jwt_required
 def show_question(number):
     if number > 4:
-        raise werkzeug.exceptions.NotFound
+        raise NotFound
     if request.method == 'GET':
         game_questions = QuestionCreator()
         current_user = get_jwt_identity()
-        current_user = current_user["username"]
+        current_user = current_user
         quest = game_questions.user_question_reader(number, current_user)
         return jsonify({"question": quest.user_view(),
                         "next-page": url_for("game.answer_question", number=number)}), 200
@@ -60,22 +61,23 @@ def show_question(number):
 
 @bp.route('/answer/<int:number>/<answer>', methods=['GET'])
 @jwt_required
-def question_ident(number, answer):
+def check_user_answer(number, answer):
     if 0 <= number > 4:
-        raise werkzeug.exceptions.NotFound
+        raise NotFound
     if number == 4:
         next_page = url_for("users.show_games_ranking")
     else:
         next_page = url_for("game.wiki_test", number=number + 1)
-    current_user = get_jwt_identity()["username"]
+    current_user = get_jwt_identity()
+
     game_questions = QuestionCreator()
-    quest = game_questions.user_question_reader(number, current_user)
-    point = game_questions.check_answer(answer, quest, current_user)
+    question_in_database = game_questions.user_question_reader(number, current_user)
+    point = game_questions.check_answer(answer, question_in_database, current_user)
     if point:
         return jsonify({"point": point,
                         "next-page": next_page}), 200
     else:
-        correct_answer = game_questions.return_correct_year(quest)
+        correct_answer = game_questions.return_correct_year(question_in_database)
 
         return jsonify({"point": point,
                         "correct": correct_answer,
@@ -87,18 +89,29 @@ def wiki_test(number):
     if request.method == "GET":
         return redirect(url_for("game.show_question", number=number), code=302)
     if request.method == "POST":
-        answer = request.json.get("answer", None)
-        return redirect(url_for("game.question_ident", number=number, answer=answer), code=302)
+        try:
+            answer = request.json.get("answer", None)
+            return redirect(url_for("game.check_user_answer", number=number, answer=answer), code=302)
+        except :
+            raise BadRequest
+
 
 
 @bp.route('/answer/<int:number>', methods=['POST'])
 def answer_question(number):
     answer = request.json.get("answer", None)
-    return redirect(url_for("question_ident", number=number, answer=answer), code=302)
+    return redirect(url_for("game.check_user_answer", number=number, answer=answer), code=302)
 
 
-@bp.errorhandler(werkzeug.exceptions.NotFound)
+@bp.errorhandler(IndexError)
 def handle_bad_request(error):
     return jsonify({"route": False,
-                    "error-type": "NotFound",
-                    "text": str(error)}), 404
+                    "error-type": "Game was not created",
+                    "text": str(error)}), 400
+
+
+@bp.errorhandler(BadRequest)
+def handle_bad_request(error):
+    return jsonify({"route": False,
+                    "error-type": "Posted json is not correct",
+                    "text": str(error)}), 400

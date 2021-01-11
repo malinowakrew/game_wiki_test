@@ -1,10 +1,12 @@
+from time import strptime
+
 from flask_jwt_extended import (
     jwt_required, create_access_token,
     jwt_refresh_token_required, create_refresh_token,
     get_jwt_identity, set_access_cookies,
     set_refresh_cookies, unset_jwt_cookies,
 )
-from flask import jsonify, request
+from flask import jsonify, request, redirect, url_for
 
 from flask import (
     Blueprint
@@ -85,7 +87,7 @@ def welcome():
 def show_games_ranking():
     current_user = get_jwt_identity()["username"]
     ranking = Ranking(current_user)
-    return ranking.crate_answers(), 200
+    return ranking.read_user_answers_from_games(), 200
 
 @users.route('/creator', methods=['POST'])
 def create_account():
@@ -106,22 +108,43 @@ def create_account():
         return user.user_view()
     except NotUniqueError as error:
         return {"account-created": False,
-                "error": "User name not unique"}, 200
+                "error": str(error),
+                "description": "User name not unique"}, 200
 
-@users.route('/supertajne', methods=['GET'])
+
+@users.route('/top-users/<day>', methods=['GET'])
 @jwt_required
-def tajne():
+def top_users_for_day(day):
     if get_jwt_identity()['role'] == "verify-user":
         other_users_scores = {}
         accounts = Account.objects(email__exists=True)
         for account in accounts:
             games = account.score
             for game in games:
-                if game.date.strftime("%m/%d/%Y") == datetime.now().strftime("%m/%d/%Y"):
+                if game.date.strftime("%d-%m-%Y") == day:
                     other_users_scores[account.name] = game.points
-        return other_users_scores, 200
+        return {
+            "users_scores": other_users_scores,
+            "date": day
+               }, 200
     else:
         raise Forbidden
+
+
+@users.route('/top-users', methods=['POST'])
+def top_users():
+    try:
+        date = request.json.get('date', None)
+        date = datetime.strptime(date, '%d-%m-%Y')
+
+    except AttributeError:
+        date = datetime.now()
+
+    # except ValueError:
+    #     raise ValueError
+
+    day = datetime.strftime(date, '%d-%m-%Y')
+    return redirect(url_for("users.top_users_for_day", day=day), code=302)
 
 
 @users.errorhandler(Forbidden)

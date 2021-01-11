@@ -11,3 +11,8 @@ flask_wtf
 flask_mongoengine
 werkzeug
 flask_user
+flask_swagger_ui=3.36.0
+wheel=0.36.2
+
+
+
