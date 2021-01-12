@@ -11,20 +11,27 @@ from flask import (
     Blueprint
 )
 
-
+from datetime import timedelta
 from src.game_creator.questions_creator import QuestionCreator
 
 bp = Blueprint('game', __name__, url_prefix='/game')
 
 
+# @bp.after_request
+# @jwt_refresh_token_required
+# def refresh(response):
+#     current_user = get_jwt_identity()
+#     time_limit = timedelta(hours=10)
+#     access_token = create_access_token(identity=current_user, expires_delta=time_limit, fresh=False)
+#
+#     set_access_cookies(response, access_token)
+#     return response
+
+
 @bp.route('/start', methods=['GET'])
 @jwt_required
-def redirection():
-    # ok = request.json.get('crate-new-game', True)
-    # if ok:
+def start_game():
     return redirect(url_for('game.scrap'), code=302)
-    # else:
-    #     return jsonify({"redirected": False}), 200
 
 
 @bp.route('/scraper', methods=['GET'])

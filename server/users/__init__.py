@@ -1,4 +1,4 @@
-from time import strptime
+import time
 
 from flask_jwt_extended import (
     jwt_required, create_access_token,
@@ -21,10 +21,6 @@ from db.schema import role
 
 users = Blueprint('users', __name__, url_prefix='/users')
 
-# from flask_user import login_required, UserManager, roles_required
-# user_manager = UserManager(users, db, Account)
-
-
 @users.route('/token/auth', methods=['POST'])
 def login():
     get_db()
@@ -41,11 +37,12 @@ def login():
         return jsonify({'login': False}), 401
 
     # Create the tokens we will be sending back to the user
-    time_limit = timedelta(minutes=30)  # set limit for user
+    time_limit = timedelta(minutes=10)  # set limit for user
     access_token = create_access_token(identity={"username": user.name,
                                                  "role": user.role}, expires_delta=time_limit)
+    time_limit = timedelta(hours=2)
     refresh_token = create_refresh_token(identity={"username": user.name,
-                                                   "role": user.role})
+                                                   "role": user.role}, expires_delta=time_limit)
 
     # Set the JWT cookies in the response
     resp = jsonify({'login': True})
@@ -53,19 +50,18 @@ def login():
     set_refresh_cookies(resp, refresh_token)
     return resp, 200
 
-
-@users.route('/token/refresh', methods=['POST'])
-@jwt_refresh_token_required
-def refresh():
-    # Create the new access token
-    current_user = get_jwt_identity()
-    time_limit = timedelta(minutes=30)
-    access_token = create_access_token(identity={"username": current_user}, expires_delta=time_limit)
-
-    # Set the JWT access cookie in the response
-    resp = jsonify({'refresh': True})
-    set_access_cookies(resp, access_token)
-    return resp, 200
+# @users.route('/token/refresh', methods=['POST'])
+# @jwt_refresh_token_required
+# def refresh():
+#     # Create the new access token
+#     current_user = get_jwt_identity()
+#     time_limit = timedelta(minutes=10)
+#     access_token = create_access_token(identity=current_user, expires_delta=time_limit, fresh=False)
+#
+#     # Set the JWT access cookie in the response
+#     resp = jsonify({'refresh': True})
+#     set_access_cookies(resp, access_token)
+#     return resp, 200
 
 
 @users.route('/token/remove', methods=['POST'])
@@ -131,6 +127,7 @@ def top_users_for_day(day):
         raise Forbidden
 
 
+
 @users.route('/top-users', methods=['POST'])
 def top_users():
     try:
@@ -140,15 +137,23 @@ def top_users():
     except AttributeError:
         date = datetime.now()
 
-    # except ValueError:
-    #     raise ValueError
-
     day = datetime.strftime(date, '%d-%m-%Y')
     return redirect(url_for("users.top_users_for_day", day=day), code=302)
 
+
+@users.route('/', methods=['DELETE'])
+@jwt_required
+def delete_account():
+    user = get_jwt_identity()["username"]
+    user_account_in_db = Account.objects(name=user)[0]
+    user_account_in_db.delete()
+    return jsonify({"route": True,
+                    "msg": "Account was deleted"}), 200
 
 @users.errorhandler(Forbidden)
 def handle_forbidden(error):
     return jsonify({"route": False,
                     "error-type": "Forbidden entrance",
                     "text": str(error)}), 403
+
+

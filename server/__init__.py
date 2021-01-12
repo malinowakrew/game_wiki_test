@@ -4,20 +4,20 @@ from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
     jwt_refresh_token_required, create_refresh_token,
     get_jwt_identity, set_access_cookies,
-    set_refresh_cookies, unset_jwt_cookies,
+    set_refresh_cookies, unset_jwt_cookies
 )
 from flask_mongoengine import MongoEngine
 
 from src.game_creator.questions_creator import *
 from flask_swagger_ui import get_swaggerui_blueprint
-from werkzeug.exceptions import NotFound, MethodNotAllowed, InternalServerError
+from werkzeug.exceptions import NotFound, MethodNotAllowed, InternalServerError, Unauthorized
 
 app = Flask(__name__)
 
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']
-app.config['JWT_REFRESH_COOKIE_PATH'] = '/token/refresh'
-app.config['JWT_COOKIE_CSRF_PROTECT'] = True
-app.config['JWT_CSRF_CHECK_FORM'] = True
+# app.config['JWT_REFRESH_COOKIE_PATH'] = 'users/token/refresh'
+app.config['JWT_COOKIE_CSRF_PROTECT'] = False
+app.config['JWT_CSRF_CHECK_FORM'] = False
 
 jwt = JWTManager(app)
 app.config['JWT_SECRET_KEY'] = 'wiki_test'
@@ -82,6 +82,23 @@ def handle_bad_request(error):
     return jsonify({"route": False,
                     "error-type": "Value Error",
                     "text": str(error)}), 400
+
+
+@app.errorhandler(Unauthorized)
+def handle_bad_request(error):
+    return jsonify({"route": False,
+                    "error-type": "Value Error",
+                    "text": str(error)}), 401
+
+@app.after_request
+@jwt_refresh_token_required
+def refresh(response):
+    current_user = get_jwt_identity()
+    time_limit = timedelta(hours=2)
+    access_token = create_access_token(identity=current_user, expires_delta=time_limit, fresh=False)
+
+    set_access_cookies(response, access_token)
+    return response
 
 
 if __name__ == '__main__':
