@@ -1,7 +1,8 @@
 from src import scraper
 from random import randint, shuffle
 from datetime import datetime, timedelta
-from werkzeug.exceptions import Gone
+from werkzeug.exceptions import Gone, NotFound
+
 
 from db.schema import *
 
@@ -79,10 +80,14 @@ class QuestionCreator:
         question = games.questions[number]
         try:
             nic = question.user_answer
+            if type(nic) == str:
+                raise Gone
+        except Gone:
             raise Gone
-        except:
+        except Exception:
+            raise ValueError
             #if games.questions[number]#TODO chech if answer exist
-            return question
+        return question
 
     @staticmethod
     def check_if_today_game_exist(user_identity=None):
@@ -98,28 +103,18 @@ class QuestionCreator:
             return False
         else:
             return True
-    # """
-    # @staticmethod
-    # def user_questions_maker_7(chosen_questions: list) -> list:
-    #     keys = [list((question["years"]).keys()) for question in chosen_questions]
-    #     abc = ["A", "B", "C"]
-    #     zip_questions = [zip(abc, key) for key in keys]
-    #     user_questions = [dict(question) for question in zip_questions]
-    #
-    #     for nr, q in enumerate(user_questions):
-    #         user_questions[nr]["text"] = chosen_questions[nr]["text"]
-    #
-    #     return user_questions
-    # """
 
     def check_answer(self, user_answer, question, user_identity):
-        Question.objects(id=question.id).update(set__user_answer=user_answer)
+        if user_answer in ["A", "B", "C"]:
+            Question.objects(id=question.id).update(set__user_answer=user_answer)
 
-        if question.user_view()[user_answer] == question.correct:
-            self.add_point(user_identity['username'])
-            return 1
+            if question.user_view()[user_answer] == question.correct:
+                self.add_point(user_identity['username'])
+                return 1
+            else:
+                return 0
         else:
-            return 0
+            raise NotFound
 
     @staticmethod
     def add_point(user_identity):

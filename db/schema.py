@@ -3,7 +3,7 @@ schema.py
 ==========================
 Module
 """
-from mongoengine import *
+from mongoengine import CASCADE, Document, StringField, IntField, ListField, DateTimeField, ReferenceField
 
 from datetime import datetime
 from passlib.hash import argon2
@@ -42,7 +42,7 @@ class Game(Document):
     """
     date = DateTimeField(required=True, default=datetime.utcnow)
     points = IntField(required=True)
-    questions = ListField(ReferenceField(Question))
+    questions = ListField(ReferenceField(Question, reverse_delete_rule=CASCADE))
 
     def ranking_view(self):
         return {
@@ -62,7 +62,7 @@ class Account(Document):
     role = StringField(required=True, hoices=role)
     name = StringField(required=True, unique=True)
     email = StringField(unique=False)  # regex="^@gmail.com"
-    score = ListField(ReferenceField(Game))
+    score = ListField(ReferenceField(Game, reverse_delete_rule=CASCADE))
     __passwd = StringField(required=True, max_length=200)
 
     @property
@@ -76,16 +76,3 @@ class Account(Document):
     def user_view(self):
         return {"name": self.name,
                 "role": self.role}
-
-# def test():
-#     disconnect()
-#     connect('wiki-test', host='mongodb://localhost/wiki-test')
-#     user = Account(role="user", name="test", email="adam1@gmail.com")
-#     user.passwd = "test"
-#     user.save()
-#     return user
-#
-# def test_cos():
-#     user = Account.objects(name="Ed")[0]
-#     user.passwd = "12345"
-#     user.save()

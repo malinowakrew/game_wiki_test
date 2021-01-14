@@ -4,28 +4,13 @@ from flask_jwt_extended import (
     get_jwt_identity, set_access_cookies,
     set_refresh_cookies, unset_jwt_cookies,
 )
-from flask import Flask, jsonify, request, redirect, url_for
+from flask import jsonify, request, redirect, url_for, Blueprint
 
 from werkzeug.exceptions import BadRequest, NotFound
-from flask import (
-    Blueprint
-)
 
-from datetime import timedelta
 from src.game_creator.questions_creator import QuestionCreator
 
 bp = Blueprint('game', __name__, url_prefix='/game')
-
-
-# @bp.after_request
-# @jwt_refresh_token_required
-# def refresh(response):
-#     current_user = get_jwt_identity()
-#     time_limit = timedelta(hours=10)
-#     access_token = create_access_token(identity=current_user, expires_delta=time_limit, fresh=False)
-#
-#     set_access_cookies(response, access_token)
-#     return response
 
 
 @bp.route('/start', methods=['GET'])
@@ -49,7 +34,7 @@ def scrap():
                         "next-page": url_for("game.wiki_test", number=0)}), 200
     else:
         return jsonify({"game-created": False,
-                        "explanation": "Existing game with today date on this account"}), 200
+                        "explanation": "Existing game with today date on this account"}), 401
 
 
 @bp.route('/question/<int:number>', methods=['GET'])
@@ -69,13 +54,13 @@ def show_question(number):
 @bp.route('/answer/<int:number>/<answer>', methods=['GET'])
 @jwt_required
 def check_user_answer(number, answer):
+    current_user = get_jwt_identity()
     if 0 <= number > 4:
         raise NotFound
     if number == 4:
-        next_page = url_for("users.show_games_ranking")
+        next_page = url_for("accounts.show_games_ranking", name=current_user["username"])
     else:
         next_page = url_for("game.wiki_test", number=number + 1)
-    current_user = get_jwt_identity()
 
     game_questions = QuestionCreator()
     question_in_database = game_questions.user_question_reader(number, current_user)
@@ -99,9 +84,8 @@ def wiki_test(number):
         try:
             answer = request.json.get("answer", None)
             return redirect(url_for("game.check_user_answer", number=number, answer=answer), code=302)
-        except :
+        except Exception:
             raise BadRequest
-
 
 
 @bp.route('/answer/<int:number>', methods=['POST'])
@@ -122,3 +106,4 @@ def handle_bad_request(error):
     return jsonify({"route": False,
                     "error-type": "Posted json is not correct",
                     "text": str(error)}), 400
+

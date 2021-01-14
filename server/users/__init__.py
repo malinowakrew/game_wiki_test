@@ -1,114 +1,41 @@
-import time
-
 from flask_jwt_extended import (
     jwt_required, create_access_token,
     jwt_refresh_token_required, create_refresh_token,
     get_jwt_identity, set_access_cookies,
     set_refresh_cookies, unset_jwt_cookies,
 )
-from flask import jsonify, request, redirect, url_for
+from flask import jsonify, request, redirect, url_for, Blueprint
 
-from flask import (
-    Blueprint
-)
-
-from werkzeug.exceptions import Forbidden
+from werkzeug.exceptions import Forbidden, Unauthorized
 from datetime import timedelta
 from db.schema import *
 from src.game_creator.ranking import Ranking
-from db.schema import role
+
+from mongoengine import NotUniqueError
 
 
-users = Blueprint('users', __name__, url_prefix='/users')
-
-@users.route('/token/auth', methods=['POST'])
-def login():
-    get_db()
-    username = request.json.get('username', None)
-    password = request.json.get('password', None)
-
-    try:
-        user = Account.objects(name=username)[0]
-
-    except Exception as error:
-        return jsonify({'login': False}), 401
-
-    if not (argon2.verify(password, user.passwd)):
-        return jsonify({'login': False}), 401
-
-    # Create the tokens we will be sending back to the user
-    time_limit = timedelta(minutes=10)  # set limit for user
-    access_token = create_access_token(identity={"username": user.name,
-                                                 "role": user.role}, expires_delta=time_limit)
-    time_limit = timedelta(hours=2)
-    refresh_token = create_refresh_token(identity={"username": user.name,
-                                                   "role": user.role}, expires_delta=time_limit)
-
-    # Set the JWT cookies in the response
-    resp = jsonify({'login': True})
-    set_access_cookies(resp, access_token)
-    set_refresh_cookies(resp, refresh_token)
-    return resp, 200
-
-# @users.route('/token/refresh', methods=['POST'])
-# @jwt_refresh_token_required
-# def refresh():
-#     # Create the new access token
-#     current_user = get_jwt_identity()
-#     time_limit = timedelta(minutes=10)
-#     access_token = create_access_token(identity=current_user, expires_delta=time_limit, fresh=False)
-#
-#     # Set the JWT access cookie in the response
-#     resp = jsonify({'refresh': True})
-#     set_access_cookies(resp, access_token)
-#     return resp, 200
+accounts = Blueprint('accounts', __name__, url_prefix='/accounts')
 
 
-@users.route('/token/remove', methods=['POST'])
-def logout():
-    resp = jsonify({'logout': True})
-    unset_jwt_cookies(resp)
-    return resp, 200
-
-
-@users.route('/example', methods=['GET'])
+@accounts.route('/example', methods=['GET'])
 @jwt_required
 def welcome():
     username = get_jwt_identity()
     return jsonify({'hello': 'from {}'.format(username)}), 200
 
 
-@users.route('/ranking', methods=['GET'])
+@accounts.route('/ranking/<name>', methods=['GET'])
 @jwt_required
-def show_games_ranking():
+def show_games_ranking(name):
     current_user = get_jwt_identity()["username"]
-    ranking = Ranking(current_user)
-    return ranking.read_user_answers_from_games(), 200
-
-@users.route('/creator', methods=['POST'])
-def create_account():
-    username = request.json.get('username', None)
-    password = request.json.get('password', None)
-
-    email = request.json.get('email', None)
-
-    if email:
-        user_role = role[0]
+    if name == current_user:
+        ranking = Ranking(current_user)
+        return ranking.read_user_answers_from_games(), 200
     else:
-        user_role = role[1]
-
-    try:
-        user = Account(role=user_role, name=username, email=email)
-        user.passwd = password
-        user.save()
-        return user.user_view()
-    except NotUniqueError as error:
-        return {"account-created": False,
-                "error": str(error),
-                "description": "User name not unique"}, 200
+        raise Unauthorized
 
 
-@users.route('/top-users/<day>', methods=['GET'])
+@accounts.route('/top-users/<day>', methods=['GET'])
 @jwt_required
 def top_users_for_day(day):
     if get_jwt_identity()['role'] == "verify-user":
@@ -127,8 +54,7 @@ def top_users_for_day(day):
         raise Forbidden
 
 
-
-@users.route('/top-users', methods=['POST'])
+@accounts.route('/top-users', methods=['POST'])
 def top_users():
     try:
         date = request.json.get('date', None)
@@ -141,16 +67,98 @@ def top_users():
     return redirect(url_for("users.top_users_for_day", day=day), code=302)
 
 
-@users.route('/', methods=['DELETE'])
+@accounts.route('/<name>', methods=['DELETE'])
 @jwt_required
-def delete_account():
+def delete_account(name):
+    print(name)
     user = get_jwt_identity()["username"]
-    user_account_in_db = Account.objects(name=user)[0]
-    user_account_in_db.delete()
-    return jsonify({"route": True,
-                    "msg": "Account was deleted"}), 200
+    if user == name:
+        user_account_in_db = Account.objects(name=user)[0]
+        user_account_in_db.delete()
+        resp = jsonify({"route": True,
+                        "msg": "Account was deleted"})
+        unset_jwt_cookies(resp)
+        return resp, 200
+    else:
+        raise Unauthorized
 
-@users.errorhandler(Forbidden)
+
+@accounts.route('/auth', methods=['POST'])
+def login():
+    username = request.json.get('username', None)
+    password = request.json.get('password', None)
+
+    try:
+        user = Account.objects(name=username)[0]
+
+    except Exception as error:
+        return jsonify({'login': False}), 401
+
+    if not (argon2.verify(password, user.passwd)):
+        return jsonify({'login': False}), 401
+
+    # Create the tokens we will be sending back to the user
+    time_limit = timedelta(minutes=10)  # set limit for user
+    access_token = create_access_token(identity={"username": user.name,
+                                                 "role": user.role}, expires_delta=time_limit, fresh=True)
+    time_limit = timedelta(hours=2)
+    refresh_token = create_refresh_token(identity={"username": user.name,
+                                                   "role": user.role}, expires_delta=time_limit)
+
+    # Set the JWT cookies in the response
+    resp = jsonify({'login': True,
+                    'next-page': url_for("game.start_game")})
+    set_access_cookies(resp, access_token)
+    set_refresh_cookies(resp, refresh_token)
+    return resp, 200
+
+
+@accounts.route('/remove', methods=['POST'])
+def logout():
+    resp = jsonify({'logout': True})
+    unset_jwt_cookies(resp)
+    return resp, 200
+
+
+@accounts.route('/', methods=['POST'])
+def create_account():
+    username = request.json.get('username', None)
+    password = request.json.get('password', None)
+
+    email = request.json.get('email', None)
+
+    if email:
+        user_role = role[0]
+    else:
+        user_role = role[1]
+
+    try:
+        user = Account(role=user_role, name=username, email=email)
+        user.passwd = password
+        user.save(cascade=True)
+        return user.user_view()
+    except NotUniqueError as error:
+        return {"account-created": False,
+                "error": str(error),
+                "description": "User name not unique"}, 200
+
+
+@accounts.route('/refresh', methods=['POST'])
+@jwt_refresh_token_required
+def refresh():
+    current_user = get_jwt_identity()
+    time_limit = timedelta(hours=10)
+    access_token = create_access_token(identity=current_user, expires_delta=time_limit, fresh=False)
+    time_limit = timedelta(hours=2)
+    refresh_token = create_refresh_token(identity=current_user, expires_delta=time_limit)
+
+    response = jsonify({"refresh": True})
+    set_refresh_cookies(response, refresh_token)
+    set_access_cookies(response, access_token)
+    return response
+
+
+@accounts.errorhandler(Forbidden)
 def handle_forbidden(error):
     return jsonify({"route": False,
                     "error-type": "Forbidden entrance",
