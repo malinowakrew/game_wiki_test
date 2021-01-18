@@ -1,16 +1,13 @@
-from flask import Flask, send_from_directory, jsonify #request, redirect, url_for,
+from flask import Flask, send_from_directory, jsonify
 
 from flask_jwt_extended import (
-    JWTManager, jwt_required, create_access_token,
-    jwt_refresh_token_required, create_refresh_token,
-    get_jwt_identity, set_access_cookies,
-    set_refresh_cookies, unset_jwt_cookies
+    JWTManager
 )
 from flask_mongoengine import MongoEngine
 
-from src.game_creator.questions_creator import *
+
 from flask_swagger_ui import get_swaggerui_blueprint
-from werkzeug.exceptions import NotFound, MethodNotAllowed, InternalServerError, Unauthorized, Gone
+from werkzeug.exceptions import NotFound, MethodNotAllowed, InternalServerError, Gone
 
 app = Flask(__name__)
 
@@ -29,7 +26,7 @@ app.config['MONGODB_SETTINGS'] = {
 
 db = MongoEngine(app)
 
-from . import (users, game, token)
+from . import (users, game)
 
 app.register_blueprint(users.accounts)
 app.register_blueprint(game.bp)
