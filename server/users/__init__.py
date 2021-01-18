@@ -147,7 +147,7 @@ def create_account():
 @jwt_refresh_token_required
 def refresh():
     current_user = get_jwt_identity()
-    time_limit = timedelta(hours=10)
+    time_limit = timedelta(minutes=10)
     access_token = create_access_token(identity=current_user, expires_delta=time_limit, fresh=False)
     time_limit = timedelta(hours=2)
     refresh_token = create_refresh_token(identity=current_user, expires_delta=time_limit)
