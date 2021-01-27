@@ -1,8 +1,6 @@
 from flask import Flask, send_from_directory, jsonify
 
-from flask_jwt_extended import (
-    JWTManager
-)
+from flask_jwt_extended import JWTManager
 from flask_mongoengine import MongoEngine
 
 
