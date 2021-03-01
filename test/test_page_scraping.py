@@ -1,5 +1,5 @@
 import pytest
-from src.pageReader.page_scraping import Scraper
+from src.page_reader.page_scraping import Scraper
 import datetime
 import random
 
